@@ -1,4 +1,4 @@
-import { ALGOLIA_APP, BASE, CUPO_SEMANAL, INDICE_OFERTAS, MIN_CARACTERES_MENSAJE } from "./config.js";
+import { ALGOLIA_APP, BASE, CUPO_SEMANAL, INDICES_OFERTAS, MIN_CARACTERES_MENSAJE } from "./config.js";
 import { ErrorWaas, SesionExpirada, errorHttp, hayCookies, leerCsrf, pagina, parsearJson, pedir, pedirJson, textoPlano } from "./http.js";
 import { cargarPerfilMaestro, existePerfilMaestro } from "./perfil-maestro.js";
 
@@ -60,13 +60,13 @@ async function credencialAlgolia() {
   return credencial;
 }
 
-async function consultarAlgolia({ consulta = "", filtros = "", pagina: p = 0, porPagina = 20 }) {
+async function consultarAlgolia({ consulta = "", filtros = "", pagina: p = 0, porPagina = 20, orden = "relevancia" }) {
   const { app, key } = await credencialAlgolia();
   const params = new URLSearchParams({ query: consulta, page: String(p), hitsPerPage: String(porPagina), ...(filtros ? { filters: filtros } : {}) });
   const r = await fetch(`https://${app.toLowerCase()}-dsn.algolia.net/1/indexes/*/queries?x-algolia-application-id=${app}&x-algolia-api-key=${encodeURIComponent(key)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requests: [{ indexName: INDICE_OFERTAS, params: params.toString() }] }),
+    body: JSON.stringify({ requests: [{ indexName: INDICES_OFERTAS[orden] || INDICES_OFERTAS.relevancia, params: params.toString() }] }),
   });
   const datos = await r.json().catch(() => null);
   if (!r.ok) {
@@ -76,29 +76,34 @@ async function consultarAlgolia({ consulta = "", filtros = "", pagina: p = 0, po
   return datos?.results?.[0] || { hits: [], nbHits: 0, nbPages: 0 };
 }
 
+const MODALIDAD_ALGOLIA = { only: "remoto", yes: "remoto o presencial", no: "presencial" };
+const VISA_ALGOLIA = { none: "no exige visa de EE. UU.", possible: "patrocina visa de EE. UU.", yes: "exige ciudadanía o visa de EE. UU." };
+
+/** Los resultados de Algolia no traen salario ni ubicación en texto: se arman con remote y locations_for_search. */
 function ofertaDeAlgolia(h) {
-  const empresa = h.company || {};
-  const slug = campo(empresa, "slug") || campo(h, "company_slug") || String(h.search_path || "").match(/\/companies\/([^/?#]+)/)?.[1] || null;
-  const ubicacion = campo(h, "pretty_location_or_remote", "location_or_remote", "location") || (Array.isArray(h.locations_for_search) ? h.locations_for_search.join(" / ") : null);
   const id = Number(campo(h, "id", "objectID"));
+  const lugares = Array.isArray(h.locations_for_search) ? h.locations_for_search : [];
+  const ciudades = lugares.filter((l) => l.split(",").length === 3);
+  const paises = lugares.filter((l) => !l.includes(","));
   return {
     id,
     titulo: campo(h, "title"),
-    empresa: campo(empresa, "name") || campo(h, "company_name"),
-    empresa_slug: slug,
-    empresa_id: campo(empresa, "id") ?? campo(h, "company_id"),
-    batch: campo(empresa, "batch") || campo(h, "company_batch"),
-    ubicacion,
-    ...modalidadDe(ubicacion, h.remote),
-    tipo: campo(h, "pretty_job_type", "job_type"),
-    rol: campo(h, "pretty_role", "role"),
-    especialidad: nombres(h.pretty_eng_type || h.eng_type).join(", ") || null,
-    salario: campo(h, "pretty_salary_range", "salary_range"),
-    equity: campo(h, "pretty_equity_range", "equity_range"),
-    experiencia_minima: campo(h, "pretty_min_experience", "min_experience"),
-    visa: campo(h, "pretty_sponsors_visa", "us_visa_required"),
-    habilidades: nombres(h.skills || h.pretty_skills),
+    empresa: campo(h, "company_name"),
+    empresa_slug: String(h.search_path || "").match(/\/companies\/([^/?#]+)/)?.[1] || null,
+    empresa_id: campo(h, "company_id"),
+    modalidad: MODALIDAD_ALGOLIA[h.remote] || null,
+    ubicacion: ciudades.join(" / ") || paises.join(", ") || (h.remote === "only" ? "Remote" : null),
+    paises: paises.length ? paises : null,
+    tipo: campo(h, "job_type"),
+    rol: campo(h, "role"),
+    especialidad: nombres(h.eng_type).join(", ") || null,
+    experiencia_minima: h.min_experience ?? null,
+    visa: VISA_ALGOLIA[h.us_visa_required] || h.us_visa_required || null,
+    publica_salario: h.has_salary ?? null,
+    habilidades: nombres(h.skills),
     tamano_empresa: campo(h, "company_team_size"),
+    sector: [h.company_parent_sector, h.company_child_sector].filter(Boolean).join(" > ") || null,
+    publicada: String(h.created_at || "").slice(0, 10) || null,
     url: urlOferta(id),
   };
 }
@@ -137,7 +142,7 @@ export function filtrosDelPerfil() {
 const ROLES = ["eng", "design", "product", "science", "sales", "marketing", "support", "operations", "recruiting", "finance", "legal"];
 export const ESPECIALIDADES = ["fs", "fe", "be", "android", "ios", "ai", "ml", "data_sci", "devops", "qa", "eng_mgmt", "embedded", "robotics", "hw"];
 
-export async function buscarOfertas({ palabra, rol, especialidad, remoto, tipo, sin_visa_eeuu, experiencia_max, con_salario, pagina: p = 1, por_pagina = 20 } = {}) {
+export async function buscarOfertas({ palabra, rol, especialidad, remoto, tipo, sin_visa_eeuu, experiencia_max, con_salario, orden, pagina: p = 1, por_pagina = 20 } = {}) {
   const defecto = filtrosDelPerfil();
   const remotoFinal = remoto || defecto.remoto;
   const visaFinal = sin_visa_eeuu ?? defecto.sin_visa_eeuu;
@@ -157,9 +162,10 @@ export async function buscarOfertas({ palabra, rol, especialidad, remoto, tipo, 
   if (con_salario) partes.push(`has_salary:true`);
   const filtros = partes.join(" AND ");
 
+  const ordenFinal = orden || (palabra ? "relevancia" : "recientes");
   let resultado;
   try {
-    resultado = await consultarAlgolia({ consulta: palabra || "", filtros, pagina: p - 1, porPagina: por_pagina });
+    resultado = await consultarAlgolia({ consulta: palabra || "", filtros, pagina: p - 1, porPagina: por_pagina, orden: ordenFinal });
   } catch (e) {
     if (e instanceof SesionExpirada) return { ...(await busquedaPublica({ palabra, remoto: remotoFinal })), aviso_sesion: e.message };
     throw e;
@@ -168,7 +174,8 @@ export async function buscarOfertas({ palabra, rol, especialidad, remoto, tipo, 
   const aplicadas = await idsPostulados().catch(() => null);
   const ofertas = (resultado.hits || []).map((h) => {
     const o = ofertaDeAlgolia(h);
-    return aplicadas ? { ...o, ya_postulado: aplicadas.ofertas.has(o.id) || (o.empresa_id != null && aplicadas.empresas.has(o.empresa_id)) } : o;
+    if (!aplicadas) return o;
+    return { ...o, ya_postulado: aplicadas.ofertas.has(o.id), ...(o.empresa_id != null && aplicadas.empresas.has(o.empresa_id) ? { ya_escribiste_a_la_empresa: true } : {}) };
   });
 
   return {
@@ -185,9 +192,11 @@ export async function buscarOfertas({ palabra, rol, especialidad, remoto, tipo, 
       tipo: tipo || null,
       experiencia_max: experiencia_max ?? null,
       con_salario: Boolean(con_salario),
+      orden: ordenFinal,
       ...(remoto === undefined || sin_visa_eeuu === undefined ? { por_defecto: defecto.origen } : {}),
     },
     ofertas,
+    nota: "La lista no trae salario ni el detalle de ubicación: usa detalle-de-oferta o evaluar-encaje antes de decidir.",
   };
 }
 
@@ -233,6 +242,7 @@ export async function detalleDeOferta(oferta) {
   const j = props.job;
   if (!j) throw new ErrorWaas(`No encontré los datos de la oferta ${id}. Puede que ya no esté publicada o que la página haya cambiado.`);
   const empresa = empresaDe(props.company);
+  empresa.id ??= props.companyFull?.id ?? null;
   const descripcion = textoPlano(campo(j, "descriptionHtml", "description_html", "description"));
   const ubicacion = campo(j, "location", "locationOrRemote", "pretty_location_or_remote");
   return {
@@ -241,6 +251,12 @@ export async function detalleDeOferta(oferta) {
     empresa: empresa.nombre,
     empresa_slug: empresa.slug,
     empresa_id: empresa.id,
+    ...(logueado
+      ? {
+          ya_postulado: (props.appliedJobIds || []).map(Number).includes(id),
+          ya_escribiste_a_la_empresa: Boolean(props.appliedToCompany),
+        }
+      : {}),
     batch: empresa.batch,
     ubicacion,
     ...modalidadDe(ubicacion, j.remote),
@@ -305,6 +321,26 @@ async function conversaciones() {
   return Array.isArray(datos) ? datos : datos?.conversations || [];
 }
 
+/** Empresas que escribieron primero (sin postulación tuya): suelen ser invitaciones a aplicar. */
+function contactosDe(lista) {
+  return lista
+    .filter((c) => !c.has_applied && (c.messages || []).some((m) => m.from_candidate === false))
+    .map((c) => ({
+      empresa: c.company?.name || null,
+      empresa_id: c.company?.id ?? null,
+      descripcion: c.company?.one_liner || null,
+      ubicacion: c.company?.location || null,
+      de: [c.user?.name, c.user?.title].filter(Boolean).join(", ") || null,
+      fundador_yc: c.user?.yc_founder ?? null,
+      fecha: c.company_messaged_at || c.last_active_at || null,
+      ofertas_ids: c.referenced_job_ids || [],
+      mensaje: String(c.last_message || "").slice(0, 400),
+      respondiste: Boolean(c.last_candidate_message),
+      leido: c.is_read ?? null,
+    }))
+    .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+}
+
 function inicioDeSemana(ahora = new Date()) {
   const d = new Date(ahora);
   d.setUTCHours(0, 0, 0, 0);
@@ -322,10 +358,10 @@ function postulacionesDe(lista) {
         empresa_id: c.company?.id ?? null,
         oferta: c.applied_job_title || null,
         ofertas_ids: c.referenced_job_ids || [],
-        fecha: mios[0] || c.created_at || null,
+        fecha: mios[0] || c.last_active_at || null,
         ultima_actividad: c.last_active_at || null,
         respuestas_de_la_empresa: (c.messages || []).filter((m) => m.from_candidate === false).length,
-        estado: c.state || c.status || null,
+        estado: c.state || null,
       };
     })
     .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
@@ -353,8 +389,16 @@ export async function cupoSemanal(lista) {
 }
 
 export async function misPostulaciones() {
-  const postulaciones = postulacionesDe(await conversaciones());
-  return { total: postulaciones.length, cupo_semanal: await cupoSemanal(postulaciones), postulaciones };
+  const lista = await conversaciones();
+  const postulaciones = postulacionesDe(lista);
+  const contactos = contactosDe(lista);
+  return {
+    total: postulaciones.length,
+    cupo_semanal: await cupoSemanal(postulaciones),
+    postulaciones,
+    empresas_que_te_escribieron: contactos,
+    ...(contactos.some((c) => !c.respondiste) ? { nota: "Hay empresas que te escribieron y no has respondido: responde desde la web (Messages)." } : {}),
+  };
 }
 
 function preguntaDe(q) {
@@ -376,7 +420,14 @@ export async function preguntasDePostulacion(oferta) {
   const base = { id: detalle.id, titulo: detalle.titulo, empresa: detalle.empresa, url: detalle.url };
 
   const postulados = await idsPostulados();
-  if (postulados.ofertas.has(detalle.id)) return { ...base, estado: "ya_postulado", mensaje: "Ya te postulaste a esta oferta." };
+  if (detalle.ya_postulado || postulados.ofertas.has(detalle.id)) return { ...base, estado: "ya_postulado", mensaje: "Ya te postulaste a esta oferta." };
+  const perfilWeb = detalle._props.profile;
+  if (perfilWeb && perfilWeb.minimally_complete === false) {
+    return { ...base, estado: "perfil_incompleto", mensaje: "Work at a Startup no deja postular hasta completar tu perfil de candidato: termínalo en https://www.workatastartup.com/application." };
+  }
+  if (perfilWeb && perfilWeb.shared === false) {
+    return { ...base, estado: "perfil_no_compartido", mensaje: "Tu perfil no está visible para las empresas: cambia tu estado de búsqueda en https://www.workatastartup.com/application/share." };
+  }
   const cupo = await cupoSemanal();
   if (!cupo.disponibles) return { ...base, estado: "limite_semanal", cupo_semanal: cupo, mensaje: `Usaste las ${cupo.limite} postulaciones de esta semana; se reinicia el ${cupo.se_reinicia}.` };
 
@@ -387,7 +438,7 @@ export async function preguntasDePostulacion(oferta) {
     ...base,
     estado: detalle.postulacion_externa ? "revisar_externa" : "listo",
     ...(detalle.postulacion_externa ? { aviso_externa: "La descripción pide postular fuera de Work at a Startup: revísala antes de enviar aquí." } : {}),
-    ya_escribiste_a_la_empresa: detalle.empresa_id != null && postulados.empresas.has(detalle.empresa_id),
+    ya_escribiste_a_la_empresa: detalle.ya_escribiste_a_la_empresa || (detalle.empresa_id != null && postulados.empresas.has(detalle.empresa_id)),
     elegible_por_ubicacion: detalle.elegible_por_ubicacion,
     mensaje: { obligatorio: true, min_caracteres: MIN_CARACTERES_MENSAJE, nota: "Es el mensaje a los fundadores. Escrito por la persona tiene más respuesta." },
     preguntas,

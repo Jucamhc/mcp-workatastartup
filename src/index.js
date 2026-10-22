@@ -6,6 +6,7 @@ import { CUPO_SEMANAL, PORTAL } from "./config.js";
 import { evaluarEncaje, proponerRespuestas } from "./encaje.js";
 import { ESPECIALIDADES, buscarOfertas, detalleDeEmpresa, detalleDeOferta, misPostulaciones, postularAOferta, preguntasDePostulacion, publico } from "./ofertas.js";
 import { registrarHerramientasPerfilMaestro } from "./perfil-maestro.js";
+import { compararPerfil, verMiPerfil } from "./perfil.js";
 import { estadoDeSesion, iniciarSesion } from "./sesion.js";
 
 const servidor = new McpServer({ name: "mcp-workatastartup", version: "0.1.0" });
@@ -59,6 +60,7 @@ herramienta(
     sin_visa_eeuu: z.boolean().optional().describe("true = excluye ofertas que exigen ciudadanía o visa de EE. UU. Por defecto true si datos_personales.pais no es EE. UU."),
     experiencia_max: z.number().int().min(0).max(20).optional().describe("Deja solo ofertas que piden como máximo estos años de experiencia."),
     con_salario: z.boolean().optional().describe("Solo ofertas que publican rango salarial."),
+    orden: z.enum(["relevancia", "recientes"]).optional().describe("Por defecto: relevancia si hay palabra; si no, recientes."),
     pagina: z.number().int().min(1).optional(),
     por_pagina: z.number().int().min(5).max(50).optional(),
   },
@@ -125,9 +127,25 @@ herramienta(
 
 herramienta(
   "mis-postulaciones",
-  "Lista las empresas a las que te postulaste en Work at a Startup, con fecha, ofertas, respuestas recibidas y el cupo semanal.",
+  "Lista las empresas a las que te postulaste en Work at a Startup, con fecha, ofertas, respuestas recibidas y el cupo semanal, y los fundadores que te escribieron primero (y si les respondiste).",
   {},
   () => misPostulaciones()
+);
+
+/* Perfil de candidato en la web (solo lectura) */
+
+herramienta(
+  "ver-mi-perfil",
+  "Lee tu perfil de candidato en Work at a Startup: visibilidad, frase corta, qué buscas, rol, años de experiencia, ubicación, remoto y reubicación, autorización en EE. UU., habilidades, experiencia, formación y CV.",
+  {},
+  () => verMiPerfil()
+);
+
+herramienta(
+  "comparar-perfil",
+  "Compara tu perfil de candidato de Work at a Startup con el perfil maestro y lista lo que conviene corregir en la web (años, ciudad, remoto, reubicación, enlaces, fechas de experiencia y estudios, habilidades no declaradas). No modifica nada.",
+  {},
+  () => compararPerfil()
 );
 
 /* Perfil maestro (estándar compartido: construir, guardar y ver) */

@@ -160,7 +160,9 @@ export async function evaluarEncaje(oferta) {
 
   // Autorización de trabajo en EE. UU.
   const enEeuu = /^(us|usa|estados unidos|ee\.? ?uu\.?|united states)$/i.test(normalizar(dp.pais));
-  if (!enEeuu && /us citizen|visa only|must be (authorized|eligible) to work in the (us|united states)|no sponsorship/i.test(`${o.visa || ""} ${o.descripcion}`)) {
+  const visaNoRequerida = /not required|will sponsor/i.test(o.visa || "");
+  const exigeVisa = /visa only|exige/i.test(o.visa || "") || /must be (authorized|eligible) to work in the (us|united states)|us citizens? only|no (visa )?sponsorship/i.test(o.descripcion || "");
+  if (!enEeuu && !visaNoRequerida && exigeVisa) {
     bajar("no_encaja");
     motivos.push(`Exige ser ciudadano o tener visa de EE. UU. (${o.visa || "según la descripción"}).`);
   }
@@ -212,13 +214,13 @@ export async function evaluarEncaje(oferta) {
     const propiasTitulo = Object.entries(propias).filter(([n, re]) => !GENERICAS.includes(n) && re.test(titulo)).map(([n]) => n);
     if (ajenasTitulo.length && !propiasTitulo.length) {
       bajar("no_encaja");
-      motivos.push(`El cargo se centra en ${ajenasTitulo.join(", ")}, que no está en tu perfil.`);
+      motivos.push(`El cargo se centra en ${ajenasTitulo.join(", ")}, que no ${ajenasTitulo.length > 1 ? "están" : "está"} en tu perfil.`);
     } else if (ajenasClave.length) {
       bajar("encaja_parcial");
-      motivos.push(`Las habilidades de la oferta incluyen ${ajenasClave.join(", ")}, que no está en tu perfil.`);
+      motivos.push(`Las habilidades de la oferta incluyen ${ajenasClave.join(", ")}, que no ${ajenasClave.length > 1 ? "están" : "está"} en tu perfil.`);
     } else if (ajenasTexto.length) {
       bajar("encaja_parcial");
-      motivos.push(`La descripción menciona también ${ajenasTexto.join(", ")}, que no está en tu perfil.`);
+      motivos.push(`La descripción menciona también ${ajenasTexto.join(", ")}, que no ${ajenasTexto.length > 1 ? "están" : "está"} en tu perfil.`);
     }
     if (!coincidencias.filter((c) => !GENERICAS.includes(c)).length) {
       bajar("encaja_parcial");

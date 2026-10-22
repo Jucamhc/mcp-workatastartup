@@ -5,7 +5,10 @@ import path from "node:path";
 export const BASE = "https://www.workatastartup.com";
 export const LOGIN = `https://account.ycombinator.com/magic?continue=${encodeURIComponent(`${BASE}/jobs`)}`;
 export const ALGOLIA_APP = "45BWZJ1SGC";
-export const INDICE_OFERTAS = "WaaSPublicCompanyJob_created_at_desc_production";
+export const INDICES_OFERTAS = {
+  relevancia: "WaaSPublicCompanyJob_production",
+  recientes: "WaaSPublicCompanyJob_created_at_desc_production",
+};
 
 // Work at a Startup limita las postulaciones dentro de la plataforma a 10 por semana (se reinicia el lunes).
 export const CUPO_SEMANAL = 10;
