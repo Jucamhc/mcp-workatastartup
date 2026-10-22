@@ -108,6 +108,7 @@ function rangoSalario(texto) {
 }
 
 const PAIS_EN = { colombia: "colombia", mexico: "mexico", "estados unidos": "us", "ee. uu.": "us", espana: "spain", argentina: "argentina", chile: "chile", peru: "peru", ecuador: "ecuador", brasil: "brazil", canada: "canada" };
+const PAIS_ISO = { colombia: "co", mexico: "mx", us: "us", spain: "es", argentina: "ar", chile: "cl", peru: "pe", ecuador: "ec", brazil: "br", canada: "ca", uruguay: "uy", "costa rica": "cr", venezuela: "ve", bolivia: "bo", paraguay: "py", guatemala: "gt", panama: "pa", "republica dominicana": "do" };
 const REGIONES_ABIERTAS = /worldwide|anywhere|global|international|all countries/;
 const REGIONES_LATAM = /latam|latin america|americas|south america|north america and latam|western hemisphere/;
 
@@ -117,6 +118,8 @@ function ubicacionPermitida(restriccion, pais) {
   const pEn = PAIS_EN[p] || p;
   if (!r || REGIONES_ABIERTAS.test(r)) return true;
   if (p && (r.includes(p) || r.includes(pEn))) return true;
+  const iso = PAIS_ISO[pEn];
+  if (iso && r.split(/[^a-z]+/).includes(iso)) return true;
   if (REGIONES_LATAM.test(r) && !["us", "canada", "spain"].includes(pEn)) return true;
   return false;
 }

@@ -43,6 +43,7 @@ Regístralo en tu cliente MCP (por ejemplo `~/.cursor/mcp.json`):
 |---|---|---|
 | `PERFIL_MAESTRO` | `~/.perfil-maestro/perfil-maestro.json` | Ruta de tu perfil maestro (la misma para todos los MCP) |
 | `WAAS_DATA_DIR` | `~/.workatastartup` | Sesión (cookies) y perfil del navegador |
+| `WAAS_CUPO_SEMANAL` | `5` | Límite semanal de postulaciones de tu cuenta, para el cálculo del cupo |
 | `CHROME_PATH` | se detecta | Ruta del ejecutable del navegador si no está en la ubicación habitual |
 
 La sesión queda en `~/.workatastartup/`, fuera de carpetas sincronizadas. El MCP nunca muestra cookies ni credenciales.
@@ -111,8 +112,4 @@ Sin ellos, `evaluar-encaje` muestra el salario sin juzgarlo y `proponer-respuest
 - Perfil de candidato: `GET /application/experience` → `props.sectionAppProps`; los nombres de las habilidades salen de `ENG_SKILLS` en `window.JOBS_GLOBALS`.
 - Preguntas: `GET /jobs/<id>/custom_questions.json`. Tipos `text` (250), `long_text` (5000), `url` (2000), `single_choice` (id de opción) y `multiple_choice` (lista de ids).
 - Postulación: `POST /apply` con `X-CSRF-Token` y `{ company_id, job_id, message, custom_question_answers, open_to_relocation }`. El mensaje es obligatorio (mínimo 50 caracteres). Respuestas: `{ job_ids, company_id }`, `{ success: false, question_id, error }` o `{ limit, reason }`.
-- Postulaciones: `GET /api/conversations` (`has_applied`, `referenced_job_ids`, mensajes con `from_candidate` y `created_at`). Límite: 10 postulaciones por semana, desde el lunes.
-
-## Pendiente de verificar
-
-- La respuesta de `POST /apply` con una postulación real: el código interpreta los formatos que usa la web, pero aún no se ha enviado ninguna desde el MCP.
+- Postulaciones: `GET /api/conversations` (`has_applied`, `referenced_job_ids`, mensajes con `from_candidate` y `created_at`). Límite: 5 postulaciones por semana en las cuentas probadas (`{ limit, reason }` al superarlo); `WAAS_CUPO_SEMANAL` lo ajusta si tu cuenta tiene otro.

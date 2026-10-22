@@ -10,8 +10,9 @@ export const INDICES_OFERTAS = {
   recientes: "WaaSPublicCompanyJob_created_at_desc_production",
 };
 
-// Work at a Startup limita las postulaciones dentro de la plataforma a 10 por semana (se reinicia el lunes).
-export const CUPO_SEMANAL = 10;
+// Límite semanal de postulaciones dentro de la plataforma ("You've reached your limit of 5 applications per week").
+// Puede variar por cuenta: WAAS_CUPO_SEMANAL lo ajusta.
+export const CUPO_SEMANAL = Number(process.env.WAAS_CUPO_SEMANAL) || 5;
 export const MIN_CARACTERES_MENSAJE = 50;
 
 // Sesión y caché en la carpeta del usuario (fuera de carpetas sincronizadas).
