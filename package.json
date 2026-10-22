@@ -1,0 +1,32 @@
+{
+  "name": "mcp-workatastartup",
+  "version": "0.1.0",
+  "description": "Servidor MCP para buscar ofertas y postular en Work at a Startup (workatastartup.com, la bolsa de empleo de Y Combinator). Proyecto no oficial.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "mcp-workatastartup": "src/index.js"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "PERFIL-MAESTRO.md",
+    "perfil-maestro.schema.json",
+    "perfil-maestro.ejemplo.json",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "ajv": "^8.20.0",
+    "puppeteer-core": "^25.12.0",
+    "unpdf": "^1.8.1",
+    "zod": "^4.6.5"
+  }
+}
