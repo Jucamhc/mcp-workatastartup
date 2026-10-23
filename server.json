@@ -1,0 +1,51 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Jucamhc/mcp-workatastartup",
+  "title": "Work at a Startup",
+  "description": "Busca ofertas y postula en Work at a Startup, la bolsa de empleo de Y Combinator.",
+  "repository": {
+    "url": "https://github.com/Jucamhc/mcp-workatastartup",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "mcp-workatastartup",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "PERFIL_MAESTRO",
+          "description": "Ruta del perfil maestro (JSON) compartido por los MCP de empleo",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "WAAS_DATA_DIR",
+          "description": "Carpeta de la sesión (por defecto ~/.workatastartup)",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "WAAS_CUPO_SEMANAL",
+          "description": "Límite semanal de postulaciones de tu cuenta (por defecto 5)",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "CHROME_PATH",
+          "description": "Ruta del navegador Chromium usado para iniciar sesión",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

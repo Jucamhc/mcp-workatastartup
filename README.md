@@ -15,27 +15,31 @@ Funciona con cualquier cuenta de candidato de Work at a Startup. Ningún dato pe
 
 Requisitos: Node.js 20 o superior y un navegador basado en Chromium (Chrome, Edge, Brave o Chromium), que solo se usa para iniciar sesión.
 
+Regístralo en tu cliente MCP (por ejemplo `~/.cursor/mcp.json` o la configuración de Claude Desktop). `npx` lo descarga de npm y lo mantiene actualizado:
+
+```json
+{
+  "mcpServers": {
+    "workatastartup": {
+      "command": "npx",
+      "args": ["-y", "mcp-workatastartup"],
+      "env": { "PERFIL_MAESTRO": "/ruta/a/mi/perfil-maestro.json" }
+    }
+  }
+}
+```
+
+Es autónomo: incluye el estándar del perfil maestro (`src/perfil-maestro.js`, `perfil-maestro.schema.json` y [`PERFIL-MAESTRO.md`](PERFIL-MAESTRO.md)). Los demás MCP de empleo traen la misma copia, así que todos comparten el mismo perfil.
+
+También puedes instalarlo desde el código fuente:
+
 ```bash
 git clone https://github.com/Jucamhc/mcp-workatastartup.git
 cd mcp-workatastartup
 npm install
 ```
 
-Es autónomo: incluye el estándar del perfil maestro (`src/perfil-maestro.js`, `perfil-maestro.schema.json` y [`PERFIL-MAESTRO.md`](PERFIL-MAESTRO.md)). Los demás MCP de empleo traen la misma copia, así que todos comparten el mismo perfil.
-
-Regístralo en tu cliente MCP (por ejemplo `~/.cursor/mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "workatastartup": {
-      "command": "node",
-      "args": ["/ruta/a/mcp-workatastartup/src/index.js"],
-      "env": { "PERFIL_MAESTRO": "/ruta/a/mi/perfil-maestro.json" }
-    }
-  }
-}
-```
+y usar `"command": "node"` con `"args": ["/ruta/a/mcp-workatastartup/src/index.js"]`.
 
 ### Variables de entorno (todas opcionales)
 
